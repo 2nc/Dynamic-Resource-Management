@@ -13,8 +13,10 @@ from pytz import timezone
 from app.autoscale import increase_worker_nodes
 from app.autoscale import decrease_worker_nodes
 
-#global
-flagmsg = 0 #appear message once
+# global
+flagmsg = 0  # appear message once
+workerpool = 0
+
 
 class RequestPerMinute(db.Model):
     __tablename__ = 'requestperminute'
@@ -60,12 +62,27 @@ def get_time_span(latest):
 @webapp.route('/index', methods=['GET'])
 def clear():
     session.clear()
+    ec2 = boto3.resource('ec2')
+    instances = ec2.instances.all()
+    workerpool = 0
+    for instance in instances:
+        if instance.id != config.MANAGER_ID:
+            if (instance.state['Name'] != ('terminated' or 'shutting-down')) and (len(instance.tags) != 0):
+                if instance.tags[0]['Value'] == 'work':
+                    workerpool = workerpool + 1
+    #initialize workerpool to 1
+    if workerpool > 1:
+        decrease_worker_nodes(workerpool - 1)
+    elif workerpool == 0:
+        increase_worker_nodes(1)
+
     return redirect(url_for('main'))
+
 
 @webapp.route('/main', methods=['GET'])
 def main():
     global flagmsg
-
+    global workerpool
     # Display an HTML list of all ec2 instances
     # create connection to ec2
     ec2 = boto3.resource('ec2')
@@ -91,7 +108,7 @@ def main():
     cursor.execute("SELECT scale,upper_bound,lower_bound,scale_up,scale_down FROM autoscale WHERE id = 1")
     auto_scale_data = cursor.fetchall()
 
-    if (len(auto_scale_data) == 0):
+    if len(auto_scale_data) == 0:
         flash("Database is missing autoscale data")
 
     for scale, upper_bound, lower_bound, scale_up, scale_down in auto_scale_data:
@@ -120,7 +137,6 @@ def main():
 
     return render_template("ec2_examples/list.html", title="Manager UI", instances=instances,
                            manager=config.MANAGER_ID,
-
                            upperBound=AUTO_upper_bound,
                            lowerBound=AUTO_lower_bound,
                            scaleUp=AUTO_scale_up,
@@ -204,6 +220,7 @@ def ec2_create():
         # Add New Instance to ELB
         elb_op.elb_add_instance(instance.id)
 
+    session['msg'] = "One instance is created"
     return redirect(url_for('main'))
 
 
@@ -220,6 +237,7 @@ def ec2_destroy(id):
         elb_op.elb_remove_instance(instance.id)
         instance.terminate()
 
+    session['msg'] = "One instance is terminated"
     return redirect(url_for('main'))
 
 
@@ -245,7 +263,7 @@ def delete_all_userdata():
     bucket = s3.Bucket(config.S3_BUCKET_NAME)
 
     bucket.objects.all().delete()
-
+    session['msg'] = "All data in s3 and database is deleted"
     return redirect(url_for('main'))
 
 
@@ -351,6 +369,10 @@ def config_scaling():
 
 @webapp.route('/ec2_examples/increase1/', methods=['POST'])
 def increase1():
+    global workerpool
+    if workerpool >= 10:
+        session['msg'] = "Maximum number of worker is 10, cannot add more"
+        return redirect(url_for('main'))
     increase_worker_nodes(1)
     session['msg'] = "Success increase worker pool by 1"
     return redirect(url_for('main'))
@@ -358,6 +380,30 @@ def increase1():
 
 @webapp.route('/ec2_examples/decrease1/', methods=['POST'])
 def decrease1():
+    global workerpool
+    if workerpool <= 1:
+        session['msg'] = "Minimum number of worker is 1, cannot remove more"
+        return redirect(url_for('main'))
     decrease_worker_nodes(1)
     session['msg'] = "Success decrease worker pool by 1"
+    return redirect(url_for('main'))
+
+
+@webapp.route('/ec2_examples/stopall/', methods=['POST'])
+def delete_all_worker():
+    ec2 = boto3.resource('ec2')
+    instances = ec2.instances.all()
+
+    for instance in instances:
+        if instance.id != config.MANAGER_ID:
+            if (instance.state['Name'] != ('terminated' or 'shutting-down')) and (len(instance.tags) != 0):
+                if instance.tags[0]['Value'] == 'work':
+                    elb_op.elb_remove_instance(instance.id)
+                    instance.terminate()
+    #stop manager
+    for instance in instances:
+        if instance.id == config.MANAGER_ID:
+            instance.stop()
+
+    session['msg'] = "Delete all worker success and shut down manager"
     return redirect(url_for('main'))

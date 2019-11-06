@@ -2,13 +2,16 @@
 {% block content %}
 
     <hr/>
-
+    {% if session['msg'] %}
+        <h3>{{ session['msg'] }}</h3>
+    {% endif %}
+    <hr/>
     <h2>EC2 Instance Information </h2>
     <form action="{{url_for('ec2_create')}}" method="post">
         <input type="submit" value="New">
     </form>
 
-    <table />
+    <table>
 
     <thead>
        <th>ID</th>
@@ -19,7 +22,7 @@
 
     {% for instance in instances %}
         <tr>
-        {%  if(( instance.tags[0]['Value'] == 'work' ) and (instance.state['Name'] != 'terminated')) %}
+        {%  if (instance.state['Name'] != 'terminated') and ( instance.tags[0]['Value'] == 'work' ) %}
             <td>{{ instance.id }}</td>
             <td>{{ instance.instance_type }}</td>
             <td>{{ instance.placement['AvailabilityZone']}}</td>
@@ -50,9 +53,7 @@
     <h2>Manually change worker pool size</h2>
     Currently worker pool size: {{ workerpool }}
     <br>
-    {% if session['msg'] %}
-        {{ session['msg'] }}
-    {% endif %}
+
     <br>
     <form action="{{url_for('increase1')}}" method="post">
         <input type="submit" value="Increase worker pool by 1">
@@ -84,7 +85,7 @@
          {% endfor %}
        {% endif %}
      {% endwith %}
-      <table />
+      <table>
     <thead>
        <th>Parameter</th>
        <th>Value</th>
@@ -121,9 +122,11 @@
     </table>
      </form>
     <br>
-
-
-
+    <hr/>
+    <h2>Stop manager(Terminate all workers and stop the manager)</h2>
+    <form action="{{url_for('delete_all_worker')}}" method="post" onsubmit='return confirm("Are you sure to delete all workers?")'>
+        <input type="submit" value="Delete All Workers">
+    </form>
     <hr/>
     <h2>User Data Deletion</h2>
     <form action="{{url_for('delete_all_userdata')}}" method="post" onsubmit='return confirm("Are you sure to delete all userdata?")'>
