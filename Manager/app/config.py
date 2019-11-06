@@ -18,5 +18,5 @@ db_config = {'user': 'admin',
              'database': 'mydb'}
 
 
-MANAGER_ID = 'i-04ec52fb3814d9025'  # change
+MANAGER_ID = 'i-0eff36e37734c7ff2'  # change
 S3_BUCKET_NAME = 'a2homework'
