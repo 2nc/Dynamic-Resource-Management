@@ -55,6 +55,7 @@ def get_time_span(latest):
 @webapp.route('/index', methods=['GET'])
 def clear():
     session.clear()
+    '''
     ec2 = boto3.resource('ec2')
     instances = ec2.instances.all()
     workerpool = 0
@@ -68,7 +69,7 @@ def clear():
         decrease_worker_nodes(workerpool - 1)
     elif workerpool == 0:
         increase_worker_nodes(1)
-
+    '''
     return redirect(url_for('main'))
 
 @webapp.route('/main', methods=['GET'])
