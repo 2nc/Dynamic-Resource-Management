@@ -7,6 +7,7 @@ from app import config
 from datetime import datetime, timedelta
 from app import elb_op
 import mysql.connector
+from pytz import timezone
 
 from app.autoscale import increase_worker_nodes
 from app.autoscale import decrease_worker_nodes
@@ -46,7 +47,7 @@ def get_requests_per_minute(instance, start_time, end_time):
 
 
 def get_time_span(latest):
-    end_time = datetime.now()
+    end_time = datetime.now(timezone('Canada/eastern'))
     start_time = end_time - timedelta(seconds=latest)
     return start_time, end_time
 

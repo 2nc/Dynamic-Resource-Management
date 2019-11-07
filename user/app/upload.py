@@ -10,6 +10,7 @@ import argparse
 import time
 import cv2
 from app.suppression import non_max_suppression
+from pytz import timezone
 
 s3 = boto3.resource("s3")
 client = boto3.client('cloudwatch')
@@ -38,7 +39,7 @@ class RequestPerMinute(db.Model):
 def record_requests(instance_id):
     try:
         requests = RequestPerMinute(instance_id=instance_id,
-                                    timestamp=datetime.now())  # (timezone(webapp.config['ZONE'])))
+                                    timestamp=datetime.now(timezone('Canada/eastern')))
         db.session.add(requests)
         db.session.commit()
     except Exception as e:
