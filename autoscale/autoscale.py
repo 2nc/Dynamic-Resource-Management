@@ -1,13 +1,10 @@
 import boto3
-import json
-import threading
-import time
-from app import config, elb_op
+import config, elb_op
 import mysql.connector
 from datetime import datetime, timedelta
+import time
 
-
-def get_instances_cpu_avg():
+def change_instances_number():
     # Open DB Connection
     cnx = mysql.connector.connect(user=config.db_config['user'], password=config.db_config['password'],
                                   host=config.db_config['host'],
@@ -41,7 +38,6 @@ def get_instances_cpu_avg():
     # Get All EC2 Instances
     instances = ec2.instances.all()
 
-    # Test CloudWatch avgs
     instances_ids = []
     for instance in instances:
         if ((instance.state['Name'] != 'terminated') and (instance.state['Name'] != 'shutting-down')) and (
@@ -125,10 +121,10 @@ def increase_worker_nodes(add_instances):
 
 def decrease_worker_nodes(delete_instances):
     if delete_instances == 0:
-        print("Cant delete anymore")
+        print("Cannot delete anymore for minimun worker is 1")
         return
 
-    print("Going to delete %d" % delete_instances)
+    print("Going to delete %d workers to save resource" % delete_instances)
 
     # Create EC2 Resource
     ec2 = boto3.resource('ec2')
@@ -171,8 +167,6 @@ def decrease_worker_nodes(delete_instances):
             avgs.append(average)
         n_instances = n_instances + 1
 
-    print("Instances:")
-    print(instances_ids)
     print("Averages:")
     print(avgs)
 
@@ -191,5 +185,8 @@ def decrease_worker_nodes(delete_instances):
             elb_op.elb_remove_instance(instance.id)  # Remove Instance from ELB
             instance.terminate()  # Terminate Instance
 
-# EXECUTE AUTOSCALE
-#get_instances_cpu_avg()
+# EXECUTE AUTOSCALE every 2 minutes
+while True:
+    change_instances_number()
+    time.sleep(120)
+    print("Autoscalar need to sleep for a while")

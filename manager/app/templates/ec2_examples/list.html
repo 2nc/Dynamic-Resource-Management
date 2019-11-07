@@ -3,13 +3,10 @@
 
     <hr/>
     {% if session['msg'] %}
-        <h3>{{ session['msg'] }}</h3>
+    <h3><font color="blue">{{ session['msg'] }}</font></h3>
     {% endif %}
     <hr/>
     <h2>EC2 Instance Information </h2>
-    <form action="{{url_for('ec2_create')}}" method="post">
-        <input type="submit" value="New">
-    </form>
 
     <table>
 
@@ -28,15 +25,11 @@
             <td>{{ instance.placement['AvailabilityZone']}}</td>
             <td>{{ instance.state['Name'] }}</td>
             <td>
+                {%  if (instance.state['Name'] != 'terminated') and (instance.state['Name'] != 'shutting-down')%}
                 <form action="{{url_for('ec2_view',id=instance.id)}}" method='get'>
                     <input type='submit' value='Details' />
                 </form>
-            </td>
-
-            <td>
-                <form action="{{url_for('ec2_destroy',id=instance.id)}}" method='post' onsubmit='return confirm("Are you sure?")'>
-                    <input type='submit' value='Destroy' />
-                </form>
+                {% endif %}
             </td>
             {% endif %}
         </tr>

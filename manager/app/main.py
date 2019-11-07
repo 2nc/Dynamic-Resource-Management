@@ -1,19 +1,20 @@
 import collections
 from flask import render_template, redirect, url_for, request, flash, session
 from app import webapp, db
-import json, os
 import boto3
 from app import config
 from datetime import datetime, timedelta
 from app import elb_op
 import mysql.connector
+from pytz import timezone
 
-from app.autoscale import increase_worker_nodes
-from app.autoscale import decrease_worker_nodes
+from app.worker_op import increase_worker_nodes
+from app.worker_op import decrease_worker_nodes
 
-#global
-flagmsg = 0 #appear message once
+# global
+flagmsg = 0  # appear message once
 workerpool = 0
+
 
 class RequestPerMinute(db.Model):
     __tablename__ = 'requestperminute'
@@ -26,9 +27,9 @@ class RequestPerMinute(db.Model):
 
 
 def get_requests_per_minute(instance, start_time, end_time):
-    datetimes = RequestPerMinute.query.filter(RequestPerMinute.instance_id == instance)  \
+    datetimes = RequestPerMinute.query.filter(RequestPerMinute.instance_id == instance) \
         .filter(RequestPerMinute.timestamp <= end_time) \
-        .filter(RequestPerMinute.timestamp >= start_time)\
+        .filter(RequestPerMinute.timestamp >= start_time) \
         .with_entities(RequestPerMinute.timestamp).all()
 
     timestamps = list(map(lambda x: int(round(datetime.timestamp(x[0]))), datetimes))
@@ -46,7 +47,7 @@ def get_requests_per_minute(instance, start_time, end_time):
 
 
 def get_time_span(latest):
-    end_time = datetime.now()
+    end_time = datetime.now(timezone('Canada/eastern'))
     start_time = end_time - timedelta(seconds=latest)
     return start_time, end_time
 
@@ -55,13 +56,13 @@ def get_time_span(latest):
 @webapp.route('/index', methods=['GET'])
 def clear():
     session.clear()
-    '''
+    #initialize worker to 1
     ec2 = boto3.resource('ec2')
     instances = ec2.instances.all()
     workerpool = 0
     for instance in instances:
         if instance.id != config.MANAGER_ID:
-            if (instance.state['Name'] != ('terminated' or 'shutting-down')) and (len(instance.tags) != 0):
+            if instance.state['Name'] != 'terminated' and len(instance.tags) != 0:
                 if instance.tags[0]['Value'] == 'work':
                     workerpool = workerpool + 1
     #initialize workerpool to 1
@@ -69,8 +70,9 @@ def clear():
         decrease_worker_nodes(workerpool - 1)
     elif workerpool == 0:
         increase_worker_nodes(1)
-    '''
+
     return redirect(url_for('main'))
+
 
 @webapp.route('/main', methods=['GET'])
 def main():
@@ -85,9 +87,9 @@ def main():
     # calculate workerpool
     workerpool = 0
     for instance in instances:
-        # filter db and mananger
+        #We do not want manager in the worker list
         if instance.id != config.MANAGER_ID:
-            if (instance.state['Name'] != ('terminated' or 'shutting-down')) and (len(instance.tags) != 0):
+            if (instance.state['Name'] != 'terminated') and (instance.state['Name'] != 'shutting-down') and (len(instance.tags) != 0):
                 if instance.tags[0]['Value'] == 'work':
                     workerpool = workerpool + 1
 
@@ -122,15 +124,16 @@ def main():
     elbA2Des = elb['LoadBalancerDescriptions']
     elbDNS = elbA2Des[0]['DNSName']
 
+    session['msg'] = "Initializing worker to 1"
     if flagmsg == 1:
         session.pop('msg')
         flagmsg = 0
     elif 'msg' in session:
         flagmsg = 1
 
+
     return render_template("ec2_examples/list.html", title="Manager UI", instances=instances,
                            manager=config.MANAGER_ID,
-
                            upperBound=AUTO_upper_bound,
                            lowerBound=AUTO_lower_bound,
                            scaleUp=AUTO_scale_up,
@@ -180,9 +183,9 @@ def ec2_view(id):
         cpu_stats.append([time, point['Average']])
         mint = mint + 1
 
-    start_time, end_time = get_time_span(1800)
+    start_time, end_time = get_time_span(1860)
     http_request_stats = get_requests_per_minute(instanceid, start_time, end_time)
-    for i in range (0, 30):
+    for i in range(0, 31):
         http_request_stats[i][0] = i
     return render_template("ec2_examples/view.html", title="Instance Info",
                            instance=instance,
@@ -240,10 +243,15 @@ def delete_all_userdata():
     cursor = cnx.cursor()
     try:
         # delete data from tables but keep the structure
-        cursor.execute("DELETE FROM user_information;")
         cursor.execute("DELETE FROM image;")
+        cursor.execute("DELETE FROM user_information;")
+        cursor.execute("DELETE FROM autoscale;")
+        # Set to default value
+        cursor.execute("INSERT INTO autoscale VALUES (1,'OFF',90,10,2,2);")
+        cursor.execute("DELETE FROM requestperminute;")
         cnx.commit()
     except:
+        print("fail delete database")
         cnx.rollback
 
     cursor.close()
@@ -378,6 +386,7 @@ def decrease1():
     session['msg'] = "Success decrease worker pool by 1"
     return redirect(url_for('main'))
 
+
 @webapp.route('/ec2_examples/stopall/', methods=['POST'])
 def delete_all_worker():
     ec2 = boto3.resource('ec2')
@@ -389,7 +398,7 @@ def delete_all_worker():
                 if instance.tags[0]['Value'] == 'work':
                     elb_op.elb_remove_instance(instance.id)
                     instance.terminate()
-    #stop manager
+    # stop manager
     for instance in instances:
         if instance.id == config.MANAGER_ID:
             instance.stop()
