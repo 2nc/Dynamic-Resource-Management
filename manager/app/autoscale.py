@@ -91,7 +91,7 @@ def get_instances_cpu_avg():
 
     if (AUTO_SCALE == 'ON'):
         if instances_average >= AUTO_UPPER_BOUND: #cpu_avg
-            print("CPU Average is greather than threshold.")
+            print("CPU Average is greater than threshold.")
             print("Increasing nodes from %d to %f" % (n_instances, min(10, n_instances * AUTO_SCALE_UP)))
             increase_worker_nodes(min(int(n_instances * AUTO_SCALE_UP), 10) - n_instances)
         elif instances_average <= AUTO_LOWER_BOUND:
