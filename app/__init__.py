@@ -1,8 +1,9 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
+import pymysql
 
-
+pymysql.install_as_MySQLdb()
 webapp = Flask(__name__)
 webapp.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://admin:12345678@alldata.c3fcxrbhjwar.us-east-1.rds.amazonaws.com/mydb?charset=utf8'
 webapp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

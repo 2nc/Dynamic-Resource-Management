@@ -1,14 +1,12 @@
 import collections
 from flask import render_template, redirect, url_for, request, flash, session
 from app import webapp, db
-import json
+import json, os
 import boto3
 from app import config
 from datetime import datetime, timedelta
-from operator import itemgetter
 from app import elb_op
 import mysql.connector
-from pytz import timezone
 
 from app.autoscale import increase_worker_nodes
 from app.autoscale import decrease_worker_nodes
@@ -27,16 +25,14 @@ class RequestPerMinute(db.Model):
 
 
 def get_requests_per_minute(instance, start_time, end_time):
-    datetimes = RequestPerMinute.query.filter(RequestPerMinute.instance_id == instance) \
+    datetimes = RequestPerMinute.query.filter(RequestPerMinute.instance_id == instance)  \
         .filter(RequestPerMinute.timestamp <= end_time) \
-        .filter(RequestPerMinute.timestamp >= start_time) \
+        .filter(RequestPerMinute.timestamp >= start_time)\
         .with_entities(RequestPerMinute.timestamp).all()
 
     timestamps = list(map(lambda x: int(round(datetime.timestamp(x[0]))), datetimes))
-
     ret = []
     dict = collections.Counter(timestamps)
-
     start_timestamp = int(round(datetime.timestamp(start_time)))
     end_timestamp = int(round(datetime.timestamp(end_time)))
 
@@ -44,14 +40,12 @@ def get_requests_per_minute(instance, start_time, end_time):
         count = 0
         for j in range(i, i + 60):
             count += dict[j]
-
         ret.append([i * 1000, count])
-    # print(ret)
-    return json.dumps(ret)
+    return (ret)
 
 
 def get_time_span(latest):
-    end_time = datetime.now()  # (timezone(webapp.config['ZONE']))
+    end_time = datetime.now()
     start_time = end_time - timedelta(seconds=latest)
     return start_time, end_time
 
@@ -136,6 +130,7 @@ def ec2_view(id):
     ec2 = boto3.resource('ec2')
 
     instance = ec2.Instance(id)
+    instanceid = instance.id
 
     client = boto3.client('cloudwatch')
 
@@ -169,15 +164,10 @@ def ec2_view(id):
         cpu_stats.append([time, point['Average']])
         mint = mint + 1
 
-    start_time, end_time = get_time_span(7200)
-    instances = json.loads(request.data.decode('utf-8'))
-    http_request_stats = []
-    for instance in instances:
-        http_request_stats.append({
-            "name": instance,
-            "data": get_requests_per_minute(instance, start_time, end_time)
-        })
-
+    start_time, end_time = get_time_span(1800)
+    http_request_stats = get_requests_per_minute(instanceid, start_time, end_time)
+    for i in range (0, 30):
+        http_request_stats[i][0] = i
     return render_template("ec2_examples/view.html", title="Instance Info",
                            instance=instance,
                            cpu_stats=cpu_stats,
