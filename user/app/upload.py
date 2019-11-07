@@ -1,24 +1,29 @@
 import os
 import boto3
 from datetime import datetime
-from pytz import timezone
 from flask import render_template, request, session
 from app import webapp, db
-from user.app.user_op_data import get_db
+from app.user_op_data import get_db
 from PIL import Image
 import numpy as np
 import argparse
 import time
 import cv2
-from user.app.suppression import non_max_suppression
+from app.suppression import non_max_suppression
 
 s3 = boto3.resource("s3")
+client = boto3.client('cloudwatch')
 
 # define a function to make direction
 def mkdir(path):
     folder = os.path.exists(path)
     if not folder:
         os.makedirs(path)
+
+
+def get_instanceId():
+    return os.popen('ec2metadata --instance-id').read().strip()
+
 
 class RequestPerMinute(db.Model):
     __tablename__ = 'requestperminute'
@@ -33,18 +38,18 @@ class RequestPerMinute(db.Model):
 def record_requests(instance_id):
     try:
         requests = RequestPerMinute(instance_id=instance_id,
-                                    timestamp=datetime.now)  # (timezone(webapp.config['ZONE'])))
+                                    timestamp=datetime.now())  # (timezone(webapp.config['ZONE'])))
         db.session.add(requests)
         db.session.commit()
     except Exception as e:
         print(e)
 
+
 @webapp.route('/upload', methods=['POST'])
 # Upload a new file and store in the systems temp directory
-
 def upload():
+    record_requests(get_instanceId())
     # check if the post request has the file part
-    record_requests(webapp.config['INSTANCE_ID'])
     if 'file' not in request.files:
         error_u = "Missing uploaded file"
         return render_template("upload.html", error_u=error_u)
@@ -254,6 +259,7 @@ def upload():
 
 @webapp.route('/<filename>')
 def showphoto(filename):
+    record_requests(get_instanceId())
     cnx = get_db()
     cursor = cnx.cursor()
     #query = "SELECT * from image where user_id=%s;" % (session['user_id'])
@@ -270,6 +276,7 @@ def showphoto(filename):
 
 
 def file_uploadTA():
+    record_requests(get_instanceId())
     # check if the post request has the file part
     if 'file' not in request.files:
         return "Missing uploaded file"

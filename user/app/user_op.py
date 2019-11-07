@@ -1,11 +1,12 @@
+import shutil
+import traceback, os
 from builtins import len
-
 from flask import render_template, session, request, redirect, url_for
 from app import webapp
 from app.user_op_data import get_db
 # password
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.upload import file_uploadTA
+from app.upload import file_uploadTA, record_requests, get_instanceId
 
 webapp.secret_key = '\x80\xa9s*\x12\xc7x\xa9d\x1f(\x03\xbeHJ:\x9f\xf0!\xb1a\xaa\x0f\xee'
 
@@ -21,10 +22,15 @@ def checkPassWord(enpassword, password):
 
 @webapp.route('/user')
 def user():
+    record_requests(get_instanceId())
     return render_template("user.html")
 
 @webapp.route('/login', methods=['GET', 'POST'])
 def login():
+    shutil.rmtree('app/static')
+    os.mkdir('app/static')
+    record_requests(get_instanceId())
+
     uname = None
     e = None
 
@@ -43,6 +49,7 @@ def login():
 
 @webapp.route('/login_submit', methods=['POST'])
 def login_submit():
+    record_requests(get_instanceId())
     cnx = get_db()
     cursor = cnx.cursor()
     if 'username' in request.form and \
@@ -68,6 +75,7 @@ def login_submit():
 
 @webapp.route('/disPhoto')
 def disPhoto():
+    record_requests(get_instanceId())
     error_dis = None
     if 'error_dis' in session:
         error_dis = session['error_dis']
@@ -75,6 +83,7 @@ def disPhoto():
 
 @webapp.route('/register', methods=['GET', 'POST'])
 def register():
+    record_requests(get_instanceId())
     uname_r = None
     e_r = None
 
@@ -89,6 +98,7 @@ def register():
 
 @webapp.route('/register_submit', methods=['POST'])
 def register_submit():
+    record_requests(get_instanceId())
     cnx = get_db()
     cursor = cnx.cursor()
     if 'username' in request.form and \
@@ -132,11 +142,13 @@ def register_submit():
 
 @webapp.route('/show', methods=['GET', 'POST'])
 def show():
+    record_requests(get_instanceId())
     return render_template("show.html")
 
 
 @webapp.route('/logout', methods=['GET', 'POST'])
 def logout():
+    record_requests(get_instanceId())
     session.clear()
     return render_template("base.html")
 
@@ -144,6 +156,7 @@ def logout():
 # Register for TA
 @webapp.route('/api/register', methods=['POST'])
 def registerTA():
+    record_requests(get_instanceId())
     try:
         username = str(request.args.get('username'))
         password = str(request.args.get('password'))
@@ -183,6 +196,7 @@ def registerTA():
 # Upload for TA
 @webapp.route('/api/upload', methods=['POST'])
 def uploadTA():
+    record_requests(get_instanceId())
     username = request.values['username']
     password = request.values['password']
     message, permission = loginTA(username, password)
@@ -193,6 +207,7 @@ def uploadTA():
 
 
 def loginTA(username, password):
+    record_requests(get_instanceId())
     cnx = get_db()
     cursor = cnx.cursor()
     if len(username) == 0 or len(password) == 0:

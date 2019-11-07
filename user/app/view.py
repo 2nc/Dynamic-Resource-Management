@@ -2,15 +2,24 @@ import os
 import boto3
 from flask import render_template, session, redirect, url_for
 from app import webapp
+from app.upload import record_requests, get_instanceId
 from app.user_op_data import get_db
 
 s3 = boto3.client("s3")
 
+def mkdir(path):
+    folder = os.path.exists(path)
+    if not folder:
+        os.makedirs(path)
+
 @webapp.route('/view', methods=['POST', 'GET'])
 def view():
+    record_requests(get_instanceId())
     if 'username' not in session:
         return redirect(url_for('user'))
     username = str(session['username'])
+    path = os.path.join('app', 'static', username)
+    mkdir(path)
     cnx = get_db()
     cursor = cnx.cursor()
 
@@ -27,7 +36,6 @@ def view():
 # download user's all files to local
     for row in allphotos:
         for col in row:
-            print(col[15:])
             s3.download_file('a2homework',col[16:], col[16:])
 
     listphoto = []
