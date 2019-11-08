@@ -85,7 +85,7 @@ def change_instances_number():
         instances_average = 0
     print("cpu utilization avg:%f" % instances_average)
 
-    if (AUTO_SCALE == 'ON'):
+    if (AUTO_SCALE == 'ON' and n_instances >= 1):
         if instances_average >= AUTO_UPPER_BOUND: #cpu_avg
             print("CPU Average is greater than threshold.")
             print("Increasing nodes from %d to %f" % (n_instances, min(10, n_instances * AUTO_SCALE_UP)))
