@@ -4,7 +4,9 @@ EC2_userdata = '''#!/bin/bash
 python3 -m pip install --user boto3
 python3 -m pip install flask_sqlalchemy
 python3 -m pip install pymysql
-python3 -m pip install pytz
+sudo python3 -m pip install pytz
+sudo python -m pip install pytz
+export AWS_DEFAULT_REGION=us-east-1
 sleep 20
 cd /home/ubuntu/Desktop/user
 python3 ./run.py >& /tmp/message'''
