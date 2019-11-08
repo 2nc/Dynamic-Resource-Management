@@ -89,19 +89,21 @@ def change_instances_number():
         if instances_average >= AUTO_UPPER_BOUND: #cpu_avg
             print("CPU Average is greater than threshold.")
             print("Increasing nodes from %d to %f" % (n_instances, min(10, n_instances * AUTO_SCALE_UP)))
-            increase_worker_nodes(min(int(n_instances * AUTO_SCALE_UP), 10) - n_instances)
+            add_workers(min(int(n_instances * AUTO_SCALE_UP), 10) - n_instances)
         elif instances_average <= AUTO_LOWER_BOUND:
             print("CPU Average is lower than threshold.")
             print("Decreasing nodes from %d to %d" % (n_instances, max(int(n_instances / AUTO_SCALE_DOWN), 1)))
-            decrease_worker_nodes(n_instances - max(int(n_instances / AUTO_SCALE_DOWN), 1))
+            delete_workers(n_instances - max(int(n_instances / AUTO_SCALE_DOWN), 1))
         else:
             print("CPU Average is within operating window. Total Workers %d" % (n_instances))
 
 
 
-def increase_worker_nodes(add_instances):
+def add_workers(add_instances):
     ec2 = boto3.resource('ec2')
-
+    if add_instances == 0:
+        print("Cannot create more worker")
+        return "fail"
     new_instances = ec2.create_instances(ImageId=config.ami_id,
                                          MinCount=add_instances,
                                          MaxCount=add_instances,
@@ -115,11 +117,11 @@ def increase_worker_nodes(add_instances):
 
     for instance in new_instances:
         elb_op.elb_add_instance(instance.id)  # Add New Instance to ELB
-
+    print ("create worker done")
     return 'OK'
 
 
-def decrease_worker_nodes(delete_instances):
+def delete_workers(delete_instances):
     if delete_instances == 0:
         print("Cannot delete anymore for minimun worker is 1")
         return
@@ -186,7 +188,14 @@ def decrease_worker_nodes(delete_instances):
             instance.terminate()  # Terminate Instance
 
 # EXECUTE AUTOSCALE every 2 minutes
+wait_time = 30
+#First we set if to be ture to run function
+end_loop_time = time.time() - 1
 while True:
-    change_instances_number()
-    time.sleep(120)
-    print("Autoscalar need to sleep for a while")
+    current_time = time.time()
+    if current_time > end_loop_time:
+        end_loop_time = time.time() + wait_time
+        change_instances_number()
+    print("rest for a while for next autoscale judgement")
+    time.sleep(10)
+    

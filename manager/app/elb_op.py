@@ -14,7 +14,7 @@ def elb_add_instance(instance_id):
             },
         ]
     )
-    print(response)
+    print("add in ELB")
 
 
 def elb_remove_instance(instance_id):
@@ -31,4 +31,4 @@ def elb_remove_instance(instance_id):
             },
         ]
     )
-    print(response)
+    print("remove from ELB")

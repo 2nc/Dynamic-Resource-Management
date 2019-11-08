@@ -268,6 +268,19 @@ def delete_all_userdata():
 @webapp.route('/ec2_examples/scaling/', methods=['POST'])
 # modify configure of scaling
 def scaling_modified():
+    #Get old upper and lower bound
+    cnx = mysql.connector.connect(user=config.db_config['user'], password=config.db_config['password'],
+                                  host=config.db_config['host'],
+                                  database=config.db_config['database'])
+    cursor = cnx.cursor()
+    cursor.execute("SELECT upper_bound,lower_bound FROM autoscale WHERE id = 1")
+    auto_scale_data = cursor.fetchall()
+    for upper_bound, lower_bound in auto_scale_data:       
+        old_upper_bound = upper_bound
+        old_lower_bound = lower_bound
+        
+
+
     # Get User Data
     newUpperBound = request.form['upperBound']
     newlowerBound = request.form['lowerBound']
@@ -279,20 +292,22 @@ def scaling_modified():
     update_entry = []
 
     # Update Parameters Check
+    new_upper = False
+    new_lower = False
     if newUpperBound:
         if not (newUpperBound.isdigit()):
             flash("Upper Bound %s is not a valid number. Entry was not updated." % (newUpperBound))
         elif (int(newUpperBound) > 100 or int(newUpperBound) < 0):
             flash("Upper Bound %s must be between 0-100. Entry was not updated." % (newUpperBound))
         else:
-            update_entry.append("upper_bound = " + newUpperBound)
+            new_upper = True           
     if newlowerBound:
         if not (newlowerBound.isdigit()):
             flash("Lower Bound %s is not a valid  number. Entry was not updated." % (newlowerBound))
         elif (int(newlowerBound) > 100 or int(newlowerBound) < 0):
             flash("Lower Bound %s must be between 0-100. Entry was not updated." % (newlowerBound))
         else:
-            update_entry.append("lower_bound = " + newlowerBound)
+            new_lower = True            
     if newScaleUp:
         if not (newScaleUp.isdigit()):
             flash("Scale Up %s is not a valid number. Entry was not updated." % (newScaleUp))
@@ -308,10 +323,23 @@ def scaling_modified():
         else:
             update_entry.append("scale_down = " + newScaleDown)
 
-    cnx = mysql.connector.connect(user=config.db_config['user'], password=config.db_config['password'],
-                                  host=config.db_config['host'],
-                                  database=config.db_config['database'])
-    cursor = cnx.cursor()
+    #Judge if upper bound is bigger thann lower bound
+    if new_upper and new_lower:
+        if newlowerBound >= newUpperBound:
+            flash("New Lower Bound must less than New Upper bound !")
+        else:
+            update_entry.append("lower_bound = " + newlowerBound)
+            update_entry.append("upper_bound = " + newUpperBound)
+    elif new_upper:
+        if int(newUpperBound) < old_lower_bound:
+            flash("New Upper Bound is too low.")
+        else:
+            update_entry.append("upper_bound = " + newUpperBound)
+    elif new_lower:
+        if int(newlowerBound) > old_upper_bound:
+            flash("New lower bound is too high.")
+        else:
+            update_entry.append("lower_bound = " + newlowerBound)
 
     # Update Fields that were valid
     for update_middle in update_entry:

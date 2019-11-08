@@ -2,8 +2,11 @@ ami_id = 'ami-0163b423f8ef2dd75'  # need change to new ami
 EC2_count = 1
 EC2_userdata = '''#!/bin/bash
 python3 -m pip install --user boto3
+python3 -m pip install flask_sqlalchemy
+python3 -m pip install pymysql
+python3 -m pip install pytz
 sleep 20
-cd /home/ubuntu/Desktop/A1_3.0 
+cd /home/ubuntu/Desktop/user
 python3 ./run.py >& /tmp/message'''
 EC2_instance = 't2.micro'
 EC2_keyName = 'A1'  # use your config
