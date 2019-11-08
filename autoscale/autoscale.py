@@ -187,8 +187,8 @@ def delete_workers(delete_instances):
             elb_op.elb_remove_instance(instance.id)  # Remove Instance from ELB
             instance.terminate()  # Terminate Instance
 
-# EXECUTE AUTOSCALE every 2 minutes
-wait_time = 120
+# EXECUTE AUTOSCALE every 1 minutes
+wait_time = 60
 #First we set if to be ture to run function
 end_loop_time = time.time() + wait_time
 while True:
