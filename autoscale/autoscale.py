@@ -188,9 +188,9 @@ def delete_workers(delete_instances):
             instance.terminate()  # Terminate Instance
 
 # EXECUTE AUTOSCALE every 2 minutes
-wait_time = 30
+wait_time = 120
 #First we set if to be ture to run function
-end_loop_time = time.time() - 1
+end_loop_time = time.time() + wait_time
 while True:
     current_time = time.time()
     if current_time > end_loop_time:
