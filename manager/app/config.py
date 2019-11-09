@@ -8,7 +8,7 @@ sudo python3 -m pip install pytz
 sudo python -m pip install pytz
 export AWS_DEFAULT_REGION=us-east-1
 sleep 20
-cd /home/ubuntu/Desktop/user
+cd /home/ubuntu/Desktop/user >& /tmp/messagecd
 python3 ./run.py >& /tmp/message'''
 EC2_instance = 't2.micro'
 EC2_keyName = 'A1'  # use your config
