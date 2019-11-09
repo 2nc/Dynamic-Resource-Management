@@ -4,7 +4,12 @@ import mysql.connector
 from datetime import datetime, timedelta
 import time
 
+avgs = []
+instances_ids = []
+worker_init = 0
+
 def change_instances_number():
+    global avgs, instances_ids
     # Open DB Connection
     cnx = mysql.connector.connect(user=config.db_config['user'], password=config.db_config['password'],
                                   host=config.db_config['host'],
@@ -49,7 +54,7 @@ def change_instances_number():
 
     avgs = []
     n_instances = 0
-
+    instance_have_data = 0
     # Get minute avg CPU utilization for every worker instance
     for id in instances_ids:
         instance = ec2.Instance(id)
@@ -73,6 +78,7 @@ def change_instances_number():
             data = datapoints[0]
             average = data["Average"]
             avgs.append(average)
+            instance_have_data = instance_have_data + 1
         n_instances = n_instances + 1
 
     sum_avg = 0
@@ -85,10 +91,10 @@ def change_instances_number():
         instances_average = 0
     print("cpu utilization avg:%f" % instances_average)
 
-    if (AUTO_SCALE == 'ON' and n_instances >= 1):
+    if (AUTO_SCALE == 'ON' and n_instances >= 1 and instance_have_data == len(instances_ids)):
         if instances_average >= AUTO_UPPER_BOUND: #cpu_avg
             print("CPU Average is greater than threshold.")
-            print("Increasing nodes from %d to %f" % (n_instances, min(10, n_instances * AUTO_SCALE_UP)))
+            print("Increasing nodes from %d to %d" % (n_instances, min(10, n_instances * AUTO_SCALE_UP)))
             add_workers(min(int(n_instances * AUTO_SCALE_UP), 10) - n_instances)
         elif instances_average <= AUTO_LOWER_BOUND:
             print("CPU Average is lower than threshold.")
@@ -96,10 +102,12 @@ def change_instances_number():
             delete_workers(n_instances - max(int(n_instances / AUTO_SCALE_DOWN), 1))
         else:
             print("CPU Average is within operating window. Total Workers %d" % (n_instances))
-
+    elif instance_have_data != len(instances_ids):
+        print("Not all the worker are working normally, wait for next round")
 
 
 def add_workers(add_instances):
+    global worker_init
     ec2 = boto3.resource('ec2')
     if add_instances == 0:
         print("Cannot create more worker")
@@ -114,60 +122,28 @@ def add_workers(add_instances):
                                          Monitoring={'Enabled': config.EC2_monitor},
                                          TagSpecifications=[{'ResourceType': 'instance', 'Tags': [
                                              {'Key': config.EC2_target_key, 'Value': config.EC2_target_value}, ]}, ])
-
+    
+    time.sleep(3)
     for instance in new_instances:
         elb_op.elb_add_instance(instance.id)  # Add New Instance to ELB
     print ("create worker done")
+    #pass signal that just created worker
+    worker_init = 1
     return 'OK'
 
 
 def delete_workers(delete_instances):
+    global instances_ids,avgs
     if delete_instances == 0:
         print("Cannot delete anymore for minimun worker is 1")
         return
 
     print("Going to delete %d workers to save resource" % delete_instances)
 
+    
     # Create EC2 Resource
     ec2 = boto3.resource('ec2')
-
-    # Get All EC2 Instances
-    instances = ec2.instances.all()
-
-    # Test CloudWatch avgs
-    instances_ids = []
-    for instance in instances:
-        if ((instance.tags[0]['Value'] == 'work') and (
-                (instance.state['Name'] != 'terminated') and (instance.state['Name'] != 'shutting-down'))):
-            instances_ids.append(instance.id)
-
-    avgs = []
-    n_instances = 0
-
-    # Get minute avg CPU utilization for every worker instance
-    for id in instances_ids:
-        instance = ec2.Instance(id)
-        client = boto3.client('cloudwatch')
-        metric_name = 'CPUUtilization'
-        namespace = 'AWS/EC2'
-        statistic = 'Average'  # could be Sum,Maximum,Minimum,SampleCount,Average
-
-        cpu = client.get_metric_statistics(
-            Period=2 * 60,
-            StartTime=datetime.utcnow() - timedelta(seconds=2 * 60),
-            EndTime=datetime.utcnow() - timedelta(seconds=0 * 60),
-            MetricName=metric_name,
-            Namespace=namespace,  # Unit='Percent',
-            Statistics=[statistic],
-            Dimensions=[{'Name': 'InstanceId', 'Value': id}]
-        )
-
-        datapoints = cpu['Datapoints']
-        if datapoints:
-            data = datapoints[0]
-            average = data["Average"]
-            avgs.append(average)
-        n_instances = n_instances + 1
+    
 
     print("Averages:")
     print(avgs)

@@ -70,7 +70,7 @@ def clear():
         decrease_worker_nodes(workerpool - 1)
     elif workerpool == 0:
         increase_worker_nodes(1)
-
+    session['msg'] = "Initializing worker to 1"
     return redirect(url_for('main'))
 
 
@@ -124,7 +124,7 @@ def main():
     elbA2Des = elb['LoadBalancerDescriptions']
     elbDNS = elbA2Des[0]['DNSName']
 
-    session['msg'] = "Initializing worker to 1"
+    
     if flagmsg == 1:
         session.pop('msg')
         flagmsg = 0
@@ -325,7 +325,7 @@ def scaling_modified():
 
     #Judge if upper bound is bigger thann lower bound
     if new_upper and new_lower:
-        if newlowerBound >= newUpperBound:
+        if int(newlowerBound) >= int(newUpperBound):
             flash("New Lower Bound must less than New Upper bound !")
         else:
             update_entry.append("lower_bound = " + newlowerBound)
