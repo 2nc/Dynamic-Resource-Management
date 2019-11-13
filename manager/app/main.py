@@ -126,7 +126,8 @@ def main():
 
     
     if flagmsg == 1:
-        session.pop('msg')
+        if 'msg' in session:
+            session.pop('msg')
         flagmsg = 0
     elif 'msg' in session:
         flagmsg = 1

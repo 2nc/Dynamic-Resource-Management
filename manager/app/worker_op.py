@@ -1,7 +1,7 @@
 import boto3
 from app import config, elb_op
 from datetime import datetime, timedelta
-
+import time
 
 def increase_worker_nodes(add_instances):
     ec2 = boto3.resource('ec2')
@@ -17,6 +17,7 @@ def increase_worker_nodes(add_instances):
                                          TagSpecifications=[{'ResourceType': 'instance', 'Tags': [
                                              {'Key': config.EC2_target_key, 'Value': config.EC2_target_value}, ]}, ])
 
+    time.sleep(3)
     for instance in new_instances:
         elb_op.elb_add_instance(instance.id)  # Add New Instance to ELB
 

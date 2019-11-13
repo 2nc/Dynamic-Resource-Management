@@ -148,15 +148,15 @@ def delete_workers(delete_instances):
     print("Averages:")
     print(avgs)
 
-    # Sort Instances by CPU Averages in Non-Increasing order
+    
     X = instances_ids
     Y = avgs
-
+    #sort cpu in increase order
     Z = [x for _, x in sorted(zip(Y, X))]
     print("Sorted:")
     print(Z)
 
-    # Delete Necessary Instances by Non-Increasing CPU Average order
+    # delete instance in from lowest cpu utilization
     for i in range(0, delete_instances):
         del_instances = ec2.instances.filter(InstanceIds=[Z[i]])
         for instance in del_instances:
