@@ -426,5 +426,4 @@ instanceid: the unique id for each instance where the requests belong, used to f
 results
 timestamp: the unique timestamp for each request, used to fliter the results
 ```
-Copyright 2019, Nianchong Wu(1005851375) & Jingwen Zhang(1006424040) & Yiyun
-Xu(1005678036). Created using Markdown
+Copyright 2019, Nianchong Wu & Jingwen Zhang & Yiyun Xu. Created using Markdown
